@@ -1,0 +1,96 @@
+# @see https://manpages.debian.org/jessie/cgit/cgitrc.5.en.html
+
+# Specify some default clone urls using macro expansion
+clone-url=ssh://git@%%SERVER_NAME%%:%%SERVER_SSH%%/$CGIT_REPO_URL
+
+# Specify the css url
+# css=/cgit/cgit.css
+css=/cgit.css
+
+# Enable ASCII art commit history graph on the log pages
+enable-commit-graph=1
+
+# Allow http transport git clone
+enable-http-clone=0
+
+# Show extra links for each repository on the index page
+enable-index-links=1
+
+# Show number of affected files per commit on the log pages
+enable-log-filecount=1
+
+# Will make cgit display remote branches in the summary and refs views.
+enable-remote-branches=1
+
+# Use a custom logo
+# logo=/cgit/cgit.png
+logo=/cgit.png
+
+# Specifies the number of entries to list per page in "log" view. Default value: "50".
+max-commit-count=100
+
+# Specifies the number of entries to list per page on the repository index page. Default value: "50".
+max-repo-count=1000
+
+# Enable statistics per week, month and quarter
+max-stats=year
+
+##
+## List of common mimetypes
+##
+
+mimetype.gif=image/gif
+mimetype.html=text/html
+mimetype.jpg=image/jpeg
+mimetype.jpeg=image/jpeg
+mimetype.pdf=application/pdf
+mimetype.png=image/png
+mimetype.svg=image/svg+xml
+
+##
+## Search for these files in the root of the default branch of repositories
+## for coming up with the about page:
+##
+readme=:README.md
+readme=:readme.md
+readme=:README.mkd
+readme=:readme.mkd
+readme=:README.rst
+readme=:readme.rst
+readme=:README.html
+readme=:readme.html
+readme=:README.htm
+readme=:readme.htm
+readme=:README.txt
+readme=:readme.txt
+readme=:README
+readme=:readme
+readme=:INSTALL.md
+readme=:install.md
+readme=:INSTALL.mkd
+readme=:install.mkd
+readme=:INSTALL.rst
+readme=:install.rst
+readme=:INSTALL.html
+readme=:install.html
+readme=:INSTALL.htm
+readme=:install.htm
+readme=:INSTALL.txt
+readme=:install.txt
+readme=:INSTALL
+readme=:install
+
+# specifies how many path elements from each repo path to use as a default section name
+section-from-path=-1
+
+##
+## List of repositories.
+## PS: Any repositories listed when section is unset will not be
+##     displayed under a section heading
+## PPS: This list could be kept in a different file (e.g. '/etc/cgitrepos')
+##      and included like this:
+##        include=/etc/cgitrepos
+##
+
+# project-list=/home/git/projects.list
+scan-path=/home/git/repositories

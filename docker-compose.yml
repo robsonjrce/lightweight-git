@@ -1,0 +1,18 @@
+version: "2.2"
+services:
+
+  git:
+    image: git:1.2.0
+    command: >
+      -d -i
+    environment:
+      PUB_KEY: ssh-rsa <your key.pub here> 
+      USERID: 1000
+      GROUPID: 1000
+    ports:
+      - "3268:3268"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./ssh:/home/git/.ssh"
+      - "./repositories:/home/git/repositories"

@@ -1,0 +1,264 @@
+#!/bin/bash
+
+REPOSITORIES_PATH="/home/git/repositories"
+REPOSITORY=""
+REPOSITORY_PATH=""
+USER=""
+
+### passwd actions: password management for private repositories
+#
+
+action-passwd() {
+  check-user "$1"
+  shift 1
+
+  while getopts ":dhp" opt; do
+    case "$opt" in
+        d) DEL="y" ;;
+        p) ADD="y" ;;
+        h) usage-passwd ;;
+        *) usage-passwd ;;
+    esac
+  done
+  shift $(( OPTIND - 1 ))
+
+  [[ "${ADD:-""}" =~ y ]] && action-passwd-add
+  [[ "${DEL:-""}" =~ y ]] && action-passwd-del
+}
+
+action-passwd-add() {
+  local passwd=""
+
+  echo ":: type the password: "
+  read -s passwd
+
+  if [[ -z "$passwd" ]]; then
+    show-error "the password should not be empty"
+  fi
+
+  echo ":: add password for $USER on $REPOSITORY"
+  repository-add-passwd "$REPOSITORY" "$USER" "${passwd}"
+}
+
+action-passwd-del() {
+  echo ":: removing password for $USER on $REPOSITORY"
+  repository-del-passwd "$REPOSITORY" "$USER"
+}
+
+check-repository() {
+  local repository="$1" repository_path=""
+  repository=$(echo $repository | sed 's/\.git.*$//')
+  repository_path="${REPOSITORIES_PATH}/${repository}.git"
+
+  if [[ ! -d "${repository_path}" ]]; then
+    show-error ":: usage ${0##*/} <repository> [options]"
+  fi
+
+  REPOSITORY="${repository}"
+  REPOSITORY_PATH="${repository_path}"
+}
+
+### cgit actions: repository properties
+#
+
+action-cgit() {
+  if [[ "$#" -gt "2" ]]; then
+    usage-cgit
+  fi
+
+  case "$1" in
+    hide) check-param-boolean "$1" "$2" ;;
+    del) cgit-del-param "$1" ;;
+    help|"-h") usage-cgit ;;
+    *) usage-cgit ;;
+  esac
+}
+
+### lock action: lock repository to disable view from cgit
+#
+action-lock() {
+  htlocked_location="${REPOSITORY_PATH}/.htlocked"
+
+  touch "$htlocked_location"
+  chown git.git "$htlocked_location"
+}
+
+### unlock action: enable repository to be viewed from cgit
+#
+action-unlock() {
+  htlocked_location="${REPOSITORY_PATH}/.htlocked"
+
+  [[ -a "$htlocked_location" ]] && rm "$htlocked_location"
+}
+
+### support functions
+#
+
+check-param-boolean() {
+  local param="$1" value="$2"
+
+  [[ "${value}" =~ ^[01]$ ]] || show-error "param should be (0|1)"
+
+  cgit-set-param "${param}" "${value}"
+}
+
+cgit-set-param() {
+  local param="$1" value="$2" occurrence="0"
+
+  cgitrc_location="${REPOSITORY_PATH}/cgitrc"
+
+  [[ -a "$cgitrc_location" ]] && occurrence=$(grep -c "$param" $cgitrc_location)
+
+  if [[ "$occurrence" -gt "0" ]]; then
+    cgit-del-param "$param"
+  fi
+
+  if [[ -s "$cgitrc_location" ]]; then
+    sed "\$a${param}=${value}" -i "$cgitrc_location"
+  else
+    echo "${param}=${value}" > "$cgitrc_location"
+  fi
+
+  if [[ -f "$cgitrc_location" ]]; then
+    chown git.git "$cgitrc_location"
+  fi  
+}
+
+cgit-del-param() {
+  local param="$1" occurrence="0"
+
+  cgitrc_location="${REPOSITORY_PATH}/cgitrc"
+
+  [[ -a "$cgitrc_location" ]] && occurrence=$(grep -c "$param" $cgitrc_location)
+
+  if [[ "$occurrence" -gt "0" ]]; then
+    sed "/${param}/d" -i "$cgitrc_location"
+  fi  
+}
+
+check-user() {
+  local user="$1"
+
+  if [[ "${user}" =~ ^[A-Za-z][A-Za-z0-9_\.-]*$ ]]; then
+    USER="$user"
+  else
+    show-error ":: username must start with character only and only have characters, numbers, underscore (_), hyphen (-) or period (.)"
+  fi
+}
+
+show-error() {
+  local error="$1"
+  echo ":: $error"
+  echo ":: exiting !"
+  exit 13
+}
+
+usage() { local RC="${1:-0}"
+  show-error "Usage ${0##*/} <repository> <command>
+
+Options (fields in '[]' are optional, '<>' are required):
+    cgit          subcommand to enable configuration of the repository
+    lock          lock the repository
+    unlock        unlock the repository
+    passwd        subcommand to manage passwords for the repository
+    -h|help       this menu
+  " >&2
+  exit $RC
+}
+
+usage-cgit() { local RC="${1:-0}"
+  show-error "Usage ${0##*/} <repository> cgit <command>
+
+Options (fields in '[]' are optional, '<>' are required):
+    del <attr>    delete the attribute
+    hide <0|1>    enable or disable the visualization on cgit frontend
+                  0: turn off
+                  1: turn on
+    -h|help       this menu
+  " >&2
+  exit $RC
+}
+
+usage-passwd() { local RC="${1:-0}"
+  show-error "Usage ${0##*/} <repository> passwd <user> <command>
+
+Options (fields in '[]' are optional, '<>' are required):
+    -d            delete the password for the user
+    -p            set a password to authenticate
+
+    -h|help       this menu
+  " >&2
+  exit $RC
+}
+
+run-as-git() {
+  local command="$1"
+
+  su git -c "${command}"
+}
+
+### setup-password-repository: setup password for repositories
+# Arguments:
+#   repository) the repository
+#   username) the username
+#   password) the passwd
+# Return: remove all .htpasswd files
+repository-add-passwd() {
+  local repository="$1" user="$2" passwd="$3"
+
+  repository=$(echo $repository | sed 's/^\///; s/\/$//;')
+  repository_location="/home/git/repositories/${repository}.git"
+  htpasswd_location="${repository_location}/.htpasswd"
+
+  if [[ -d "$repository_location" ]]; then
+    passwd_apr=$(openssl passwd -apr1 "$passwd")
+    passwd_line="${user}:${passwd_apr}\n"
+    printf "$passwd_line" >> "$htpasswd_location"
+
+    if [[ -f "${repository_location}/.htpasswd" ]]; then
+      chown git.git "${repository_location}/.htpasswd"
+    fi
+  fi
+}
+
+### setup-password-repository: setup password for repositories
+# Arguments:
+#   repository) the repository
+#   username) the username
+# Return: remove the password for the user, and if no user remains will remove the .htpasswd file
+repository-del-passwd() {
+  local repository="$1" user="$2" occurrence=""
+
+  repository=$(echo $repository | sed 's/^\///; s/\/$//;')
+  repository_location="/home/git/repositories/${repository}.git"
+  htpasswd_location="${repository_location}/.htpasswd"
+  occurrence=$(grep -c "$USER" $htpasswd_location 2> /dev/null || echo "0")
+
+  if [[ "$occurrence" -gt "0" ]]; then
+    echo ":: attempting to remove password"
+    sed "/$USER/d" -i "$htpasswd_location"
+  fi
+
+  # removing empty lines from htpasswd file
+  sed '/^$/d' -i $htpasswd_location
+
+  # file exists and size is equal to zero, we are removing it
+  [[ -a "$htpasswd_location" &&  ! -s "$htpasswd_location" ]] && rm "$htpasswd_location"
+}
+
+### main program
+#
+
+# we are expecting the repository always as the first argument
+check-repository "$1"
+shift 1
+
+# check action
+case "$1" in
+  cgit) shift && eval action-cgit "$@" ;;
+  lock) action-lock ;;
+  unlock) action-unlock ;;
+  passwd) shift && eval action-passwd "$@" ;;
+  help|"-h") usage ;;
+  *) usage ;;
+esac

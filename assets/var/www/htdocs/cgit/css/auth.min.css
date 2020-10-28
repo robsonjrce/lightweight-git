@@ -1,0 +1,20 @@
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+.card-login {
+    max-width: 25rem;
+}
+
+.bg-blue-gradient {
+    background: linear-gradient(45deg,#003366,#0076af)!important;
+}
+
+.bg-red-gradient {
+	background: linear-gradient(45deg,#660000,#af6900)!important;
+}
